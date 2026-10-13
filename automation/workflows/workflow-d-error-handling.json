@@ -1,0 +1,77 @@
+{
+  "name": "SpotFlow AI — Workflow D (Global Error Handling & Incident Sanitization)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-error-trigger",
+      "name": "Global Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sanitização estrita de dados sensíveis antes de registrar o incidente\nconst errorData = $input.first().json;\n\nconst rawMessage = errorData.execution?.error?.message || 'Erro de execução desconhecido no workflow';\n// Mascarar tokens, credenciais e chaves caso presentes no texto do erro\nconst sanitizedMessage = rawMessage\n  .replace(/(bearer\\s+)[a-zA-Z0-9_.-]+/gi, '$1[REDACTED]')\n  .replace(/(key=|secret=)[a-zA-Z0-9_.-]+/gi, '$1[REDACTED]');\n\nreturn [{\n  json: {\n    incident_id: 'inc_' + Date.now(),\n    workflow_name: errorData.workflow?.name || 'Unknown',\n    failed_node: errorData.execution?.lastNodeExecuted || 'Unknown',\n    error_message: sanitizedMessage,\n    severity: 'high',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-sanitize-incident",
+      "name": "Sanitize Sensitive Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SPOTFLOW_API_URL || 'http://localhost:3001'}}/api/automations/webhook/incident",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-SpotFlow-Signature",
+              "value": "={{$env.N8N_WEBHOOK_SECRET || 'secret'}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify($json)}}"
+      },
+      "id": "node-post-incident",
+      "name": "Report Incident to SpotFlow API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Global Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Sensitive Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Sensitive Data": {
+      "main": [
+        [
+          {
+            "node": "Report Incident to SpotFlow API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

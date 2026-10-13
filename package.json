@@ -1,0 +1,38 @@
+{
+  "name": "spotflow-ai-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SpotFlow AI — Plataforma inteligente de automação e curadoria musical integrada ao Spotify",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:api": "npm run dev --workspace=@spotflow/api",
+    "dev:web": "npm run dev --workspace=@spotflow/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace=@spotflow/api",
+    "db:migrate": "npm run db:migrate --workspace=@spotflow/api",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "keywords": [
+    "spotify",
+    "ai",
+    "n8n",
+    "automation",
+    "music",
+    "playlist",
+    "monorepo",
+    "typescript"
+  ],
+  "author": "SpotFlow Team",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  }
+}

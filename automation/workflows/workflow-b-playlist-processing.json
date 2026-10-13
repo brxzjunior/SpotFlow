@@ -1,0 +1,81 @@
+{
+  "name": "SpotFlow AI — Workflow B (Playlist Processing & Staging)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "spotflow/playlist-process",
+        "options": {}
+      },
+      "id": "node-trigger-process",
+      "name": "Process Webhook In",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SPOTFLOW_API_URL || 'http://localhost:3001'}}/api/studio/preview",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{$json.body.user_token}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({ prompt: $json.body.prompt })}}"
+      },
+      "id": "node-request-preview",
+      "name": "Generate Staged Preview in SpotFlow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolida o staging aguardando confirmação do usuário\nconst preview = $input.first().json.data;\nreturn [{\n  json: {\n    status: 'awaiting_user_confirmation',\n    playlist_name: preview.suggestedName,\n    tracks_count: preview.tracks.length,\n    verified: preview.isVerified,\n    requires_confirmation: true,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-format-staging",
+      "name": "Stage For Confirmation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    }
+  ],
+  "connections": {
+    "Process Webhook In": {
+      "main": [
+        [
+          {
+            "node": "Generate Staged Preview in SpotFlow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Staged Preview in SpotFlow": {
+      "main": [
+        [
+          {
+            "node": "Stage For Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

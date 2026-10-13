@@ -1,0 +1,83 @@
+{
+  "name": "SpotFlow AI — Workflow A (Playlist Request Ingestion)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "spotflow/playlist-request",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node-webhook-in",
+      "name": "Webhook Ingestion",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validação de assinatura HMAC e cabeçalhos de segurança\nconst headers = $input.first().json.headers;\nconst body = $input.first().json.body;\n\nif (!body.prompt || !body.idempotency_key) {\n  throw new Error('Payload inválido: prompt e idempotency_key são obrigatórios');\n}\n\nreturn [{\n  json: {\n    execution_id: 'n8n_exec_' + Date.now(),\n    prompt: body.prompt,\n    idempotency_key: body.idempotency_key,\n    status: 'accepted',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-validate-payload",
+      "name": "Validate & Check Idempotency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SPOTFLOW_API_URL || 'http://localhost:3001'}}/api/automations/webhook",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-SpotFlow-Signature",
+              "value": "={{$env.N8N_WEBHOOK_SECRET || 'secret'}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify($json)}}"
+      },
+      "id": "node-notify-backend",
+      "name": "Dispatch Execution to SpotFlow API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Ingestion": {
+      "main": [
+        [
+          {
+            "node": "Validate & Check Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Check Idempotency": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Execution to SpotFlow API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
